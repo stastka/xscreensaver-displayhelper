@@ -12,20 +12,38 @@ install tvservice and xscreensaver
 
 INSTALL
 -------
-Add in you autostart from LXDE (~/.config/lxsession/LXDE-pi/autostart) following line if you want your touchscreen after 5 seconds off:
+Add line to autostart from LXDE (~/.config/lxsession/LXDE-pi/autostart) if you want your touchscreen after 5 seconds off:
 
 `~/bin/xscreensaver-displayhelper 5 touch&`
 
 SYNOPSIS
 --------
+Display off after # Seconds
 
 `xscreensaver-displayhelper [delay in s]`
 
-`xscreensaver-displayhelper  -s, --status  status of display (on|off)"`
+Display Off after # Seconds only Touchscreen or HDMI
 
-`xscreensaver-displayhelper  -f, --off     Touchscreen/Hdmi off`
+`xscreensaver-displayhelper [delay in s] [touch|hdmi]`
 
-`xscreensaver-displayhelper  -o, --on      Touchsceen/Hdmi on`
+status of display (on|off)
 
-`xscreensaver-displayhelper  -h, --help    This help text`
+`xscreensaver-displayhelper  -s, --status  "`
+
+Touchscreen/Hdmi off
+
+`xscreensaver-displayhelper  -f, --off`
+
+Touchsceen/Hdmi on
+
+`xscreensaver-displayhelper  -o, --on`
+
+Help Text
+
+`xscreensaver-displayhelper  -h, --help    `
+
+SOURCE
+------
+Based on https://github.com/ramses0/xscreensaver-pi-hdmi/ and https://www.raspberrypi.org/forums/viewtopic.php?t=56944&p=429723
+I add Support for 7" Touchscreen and few flags
 
