@@ -8,7 +8,7 @@ normaly are screen blank not same display physical off. This Tool let hdmi or to
 
 DEPENDENCY
 ----------
-install tvservice and xscreensaver
+install tvservice (hdmi support) and xscreensaver
 
 INSTALL
 -------
