@@ -1,0 +1,153 @@
+#!/bin/bash
+
+# Override DISPLAY (if starts over ssh/shell)
+export DISPLAY=:0.0
+
+howto() {
+	PROG=`basename $0`
+	echo "+-----------------------+------------+"
+	echo "displayhelper v1.0 (c)stastka.ch"
+	echo "+-----------------------+------------+"
+	echo "Usage: $PROG [duration_in_sec] [touch|hdmi]"
+	echo "Disable Raspberry Pi Official 7\" Touchscreen or HDMI after xscreensaver starts."
+	echo "Default Duration: 10 seconds"
+	echo "Default Displayoutput: touchscreen"
+	echo "Example: 7\" Touchscreen after 20 seconds go Backlight off"
+	echo ""
+	echo "$PROG 20 touch"
+	echo ""
+	echo "Options:"
+	echo "  -s, --status 	status of display (on|off)"
+	echo "  -f, --off	Touchscreen/Hdmi off"
+	echo "  -o, --on 	Touchsceen/Hdmi on"
+	echo "  -h, --help	This help text"
+}
+getstatus() {
+	
+	if [ "$SCREENMODE" == "hdmi" ]; then
+		tvservice --status | grep -q HDMI
+		RESULT=$?
+		if [ "$RESULT" -eq 1 ]; then
+			echo "HDMI are off (=$RESULT)"
+        	else
+			echo "HDMI are on (=$RESULT)"
+		fi
+
+	elif [ "$SCREENMODE" == "touch" ]; then
+		RESULT="$(cat /sys/class/backlight/rpi_backlight/bl_power)"
+
+		if [ "$RESULT" -eq 1 ]; then
+			echo "Touchscreen Backlight are off (=$RESULT)"
+        	else
+			echo "Touchscreen Backlight are on (=$RESULT)"
+		fi
+	fi
+}
+
+DURATION_SEC=10
+if [[ "" != "$1" && $1 =~ ^[0-9]+$ ]] ; then
+	DURATION_SEC=$1
+fi
+
+SCREENMODE="touch"
+if [[ "" != "$2" && $2 =~ ^[a-z]+$ ]] ; then
+	SCREENMODE=$2
+fi
+
+display_off() {
+	if [ "$SCREENMODE" == "hdmi" ]; then
+		# no --quiet switch
+		tvservice --off > /dev/null
+	elif [ "$SCREENMODE" == "touch" ]; then
+    		sudo echo 1 > /sys/class/backlight/rpi_backlight/bl_power
+	fi
+}
+
+display_on() {
+    
+	if [ "$SCREENMODE" == "hdmi" ]; then
+		# get the current state of HDMI output
+    		tvservice --status | grep -q HDMI
+		RESULT=$?
+    	elif [ "$SCREENMODE" == "touch" ]; then
+		RESULT="$(cat /sys/class/backlight/rpi_backlight/bl_power)"
+	fi
+
+    # if Touchscreen/HDMI was not found, RESULT=1 ... turn it back on
+    if [ "$RESULT" -eq 1 ] ; then
+	
+	if [ "$SCREENMODE" == "hdmi" ]; then
+		# no --quiet switch
+       		tvservice --preferred > /dev/null
+       		fbset -depth 8
+       		fbset -depth 16
+       		xrefresh
+	elif [ "$SCREENMODE" == "touch" ]; then
+		sudo echo 0 > /sys/class/backlight/rpi_backlight/bl_power
+	fi
+    fi
+}
+if [[ "-f" == "$1" || "--off" == "$1" ]] ; then
+	echo "Touchscreen turn off"
+        display_off
+	exit
+fi
+
+if [[ "-h" == "$1" || "--help" == "$1" ]] ; then
+	howto
+	exit
+fi
+
+if [[ "-s" == "$1" || "--status" == "$1" ]] ; then
+	        getstatus
+		exit
+fi
+
+if [[ "-o" == "$1" || "--on" == "$1" ]] ; then
+	echo "Touchscreen/HDMI turn on"
+	display_on
+	exit
+fi
+
+TEMPFILE=`tempfile --prefix=hdmi. --suffix=.pid`
+echo 0 > $TEMPFILE
+
+interrupt_sleep() {
+    SLEEP_PID=0
+    if [ -x $TEMPFILE ] ; then
+        SLEEP_PID=`cat $TEMPFILE`
+    fi
+    if [ "0" != "$SLEEP_PID" ] ; then
+        echo 0 > $TEMPFILE
+        kill $SLEEP_PID
+    fi
+}
+
+#failsafe
+display_on_exit() {
+    interrupt_sleep
+    rm $TEMPFILE
+    display_on
+    exit
+}
+
+trap 'display_on_exit' SIGQUIT SIGINT
+
+display_on
+
+while read line ; do
+    if [[ $line =~ ^BLANK || $line =~ ^LOCK ]] ; then
+        (
+            sleep $DURATION_SEC
+            display_off
+            echo 0 > $TEMPFILE
+        ) &
+        echo $! > $TEMPFILE
+    fi
+    if [[ $line =~ ^UNBLANK ]] ; then
+        interrupt_sleep
+        display_on
+    fi
+done < <( xscreensaver-command --watch )
+
+display_on_exit
